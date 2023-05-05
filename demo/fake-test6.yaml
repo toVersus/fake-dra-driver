@@ -1,0 +1,64 @@
+# One Deployment, 2 pods, one container
+# Asking for 4 distinct Fakes with 5 splitted each
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test6
+
+---
+apiVersion: fake.resource.3-shake.com/v1alpha1
+kind: FakeClaimParameters
+metadata:
+  namespace: test6
+  name: multiple-fakes
+spec:
+  count: 4
+  split: 5
+
+---
+apiVersion: resource.k8s.io/v1alpha2
+kind: ResourceClaimTemplate
+metadata:
+  namespace: test6
+  name: multiple-fakes
+spec:
+  spec:
+    resourceClassName: fake.3-shake.com
+    parametersRef:
+      apiGroup: fake.resource.3-shake.com
+      kind: FakeClaimParameters
+      name: multiple-fakes
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multiple-fakes
+  namespace: test6
+  labels:
+    app: gpu-test6-pod
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pod
+  template:
+    metadata:
+      labels:
+        app: pod
+    spec:
+      terminationGracePeriodSeconds: 3
+      containers:
+      - name: ctr
+        image: cgr.dev/chainguard/wolfi-base:latest
+        command: ["ash", "-c"]
+        args: ["export; sleep infinity"]
+        resources:
+          claims:
+          - name: fakes
+      resourceClaims:
+      - name: fakes
+        source:
+          resourceClaimTemplateName: multiple-fakes

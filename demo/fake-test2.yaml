@@ -1,0 +1,46 @@
+# One pod, two containers
+# Each asking for shared access to a single Fake
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test2
+
+---
+apiVersion: resource.k8s.io/v1alpha2
+kind: ResourceClaimTemplate
+metadata:
+  namespace: test2
+  name: default-fake-template
+spec:
+  spec:
+    resourceClassName: fake.3-shake.com
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  namespace: test2
+  name: pod0
+spec:
+  terminationGracePeriodSeconds: 3
+  containers:
+  - name: ctr0
+    image: cgr.dev/chainguard/wolfi-base:latest
+    command: ["ash", "-c"]
+    args: ["export; sleep infinity"]
+    resources:
+      claims:
+      - name: shared-fake
+  - name: ctr1
+    image: cgr.dev/chainguard/wolfi-base:latest
+    command: ["ash", "-c"]
+    args: ["export; sleep infinity"]
+    resources:
+      claims:
+      - name: shared-fake
+  resourceClaims:
+  - name: shared-fake
+    source:
+      resourceClaimTemplateName: default-fake-template

@@ -1,0 +1,14 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "fake-dra-driver.fullname" . }}
+  namespace: {{ include "fake-dra-driver.namespace" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "fake-dra-driver.serviceAccountName" . }}
+  namespace: {{ include "fake-dra-driver.namespace" . }}
+roleRef:
+  kind: ClusterRole
+  name: {{ include "fake-dra-driver.fullname" . }}
+  apiGroup: rbac.authorization.k8s.io

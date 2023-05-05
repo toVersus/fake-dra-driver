@@ -1,0 +1,90 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.2
+  creationTimestamp: null
+  name: nodeallocationstates.nas.fake.resource.3-shake.com
+spec:
+  group: nas.fake.resource.3-shake.com
+  names:
+    kind: NodeAllocationState
+    listKind: NodeAllocationStateList
+    plural: nodeallocationstates
+    singular: nas
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              allocatableDevice:
+                items:
+                  properties:
+                    fake:
+                      properties:
+                        name:
+                          type: string
+                        uuid:
+                          type: string
+                      required:
+                      - name
+                      - uuid
+                      type: object
+                  type: object
+                type: array
+              allocatedClaims:
+                additionalProperties:
+                  properties:
+                    fake:
+                      properties:
+                        devices:
+                          items:
+                            properties:
+                              split:
+                                type: integer
+                              uuid:
+                                type: string
+                            type: object
+                          type: array
+                      type: object
+                  type: object
+                type: object
+              preparedDevices:
+                additionalProperties:
+                  properties:
+                    fake:
+                      properties:
+                        devices:
+                          items:
+                            properties:
+                              parentUUID:
+                                type: string
+                              uuid:
+                                type: string
+                            type: object
+                          type: array
+                      type: object
+                  type: object
+                type: object
+            type: object
+          status:
+            type: string
+        type: object
+    served: true
+    storage: true

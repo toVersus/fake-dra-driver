@@ -1,0 +1,63 @@
+# One shared, global claim providing access to a Fake
+# Two pods, each asking for access to the shared Fake
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test3
+
+---
+apiVersion: resource.k8s.io/v1alpha2
+kind: ResourceClaim
+metadata:
+  namespace: test3
+  name: shared-fake
+spec:
+  resourceClassName: fake.3-shake.com
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  namespace: test3
+  name: pod0
+  labels:
+    app: pod
+spec:
+  terminationGracePeriodSeconds: 3
+  containers:
+  - name: ctr0
+    image: cgr.dev/chainguard/wolfi-base:latest
+    command: ["ash", "-c"]
+    args: ["export; sleep infinity"]
+    resources:
+      claims:
+      - name: shared
+  resourceClaims:
+  - name: shared
+    source:
+      resourceClaimName: shared-fake
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  namespace: test3
+  name: pod1
+  labels:
+    app: pod
+spec:
+  terminationGracePeriodSeconds: 3
+  containers:
+  - name: ctr0
+    image: cgr.dev/chainguard/wolfi-base:latest
+    command: ["ash", "-c"]
+    args: ["export; sleep infinity"]
+    resources:
+      claims:
+      - name: shared
+  resourceClaims:
+  - name: shared
+    source:
+      resourceClaimName: shared-fake

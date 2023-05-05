@@ -1,0 +1,14 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "fake-dra-driver.fullname" . }}
+  namespace: {{ include "fake-dra-driver.namespace" . }}
+rules:
+- apiGroups:
+  - ""
+  - resource.k8s.io
+  - fake.resource.3-shake.com
+  - nas.fake.resource.3-shake.com
+  resources: ["*"]
+  verbs: ["*"]
