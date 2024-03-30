@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 # Copyright 2023 The Kubernetes Authors.
+# Copyright 2023 NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,11 +14,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# This scripts invokes `kind build image` so that the resulting
-# image has a containerd with CDI support.
-#
-# Usage: kind-build-image.sh <tag of generated image>
 
 # A reference to the current directory where this script is located
 CURRENT_DIR="$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)"
@@ -35,13 +31,11 @@ cleanup() {
 trap cleanup EXIT
 
 # Go back to the root directory of this repo
-cd ${CURRENT_DIR}/../..
-
-# Set build variables
-export REGISTRY="${DRIVER_IMAGE_REGISTRY}"
-export IMAGE="${DRIVER_IMAGE_NAME}"
-export VERSION="${DRIVER_IMAGE_TAG}"
+cd ${PROJECT_DIR}
 
 # Regenerate the CRDs and build the container image
+# TODO: This should be part of the image name
 make docker-generate
 make -f deployments/container/Makefile "${DRIVER_IMAGE_PLATFORM}"
+
+cd ${CURRENT_DIR}

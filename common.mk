@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GOLANG_VERSION ?= 1.20.3
+GOLANG_VERSION ?= 1.22.1
 
 DRIVER_NAME := fake-dra-driver
 MODULE := github.com/toVersus/$(DRIVER_NAME)

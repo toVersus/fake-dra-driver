@@ -116,6 +116,7 @@ generate-clientset: generate-crds
 generate-crds: vendor
 	rm -rf $(CURDIR)/deployments/helm/$(DRIVER_NAME)/crds
 	for api in $(APIS); do \
+		echo "generating crds for $${api}"; \
 		rm -f $(CURDIR)/api/$(VENDOR)/resource/$${api}/zz_generated.deepcopy.go; \
 		controller-gen \
 			object:headerFile=$(CURDIR)/hack/boilerplate.go.txt,year=$(shell date +"%Y") \
@@ -124,6 +125,7 @@ generate-crds: vendor
 		controller-gen crd:crdVersions=v1 \
 			paths=$(CURDIR)/api/$(VENDOR)/resource/$${api}/ \
 			output:crd:dir=$(CURDIR)/deployments/helm/$(DRIVER_NAME)/crds; \
+		echo "[completed] generating crds for $${api}"; \
 	done
 
 # Generate an image for containerized builds

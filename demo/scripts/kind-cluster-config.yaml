@@ -2,6 +2,12 @@ kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 featureGates:
   DynamicResourceAllocation: true
+containerdConfigPatches:
+# Enable CDI as described in
+# https://tags.cncf.io/container-device-interface#containerd-configuration
+- |-
+  [plugins."io.containerd.grpc.v1.cri"]
+    enable_cdi = true
 nodes:
 - role: control-plane
   kubeadmConfigPatches:
@@ -18,6 +24,13 @@ nodes:
           v: "1"
   - |
     kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        v: "1"
+- role: worker
+  kubeadmConfigPatches:
+  - |
+    kind: JoinConfiguration
     nodeRegistration:
       kubeletExtraArgs:
         v: "1"
