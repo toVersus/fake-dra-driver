@@ -16,6 +16,8 @@ metadata:
 spec:
   count: 4
   split: 2
+  selector:
+    model: MODEL_100
 
 ---
 apiVersion: resource.k8s.io/v1alpha2

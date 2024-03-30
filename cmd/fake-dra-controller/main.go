@@ -138,6 +138,11 @@ func NewCommand() *cobra.Command {
 			}
 		}
 
+		err = StartClaimParametersGenerator(ctx, config)
+		if err != nil {
+			return fmt.Errorf("start claim parameters generator: %w", err)
+		}
+
 		err = StartController(ctx, config)
 		if err != nil {
 			return fmt.Errorf("start controller: %w", err)

@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	nascrd "github.com/toVersus/fake-dra-driver/api/3-shake.com/resource/fake/nas/v1alpha1"
+	resourceapi "k8s.io/api/resource/v1alpha2"
 	"k8s.io/klog/v2"
 )
 
@@ -31,6 +33,24 @@ func (d *PreparedDevices) Type() string {
 		return nascrd.FakeDeviceType
 	}
 	return nascrd.UnknownDeviceType
+}
+
+func (d PreparedDevices) Len() int {
+	if d.Fake != nil {
+		return len(d.Fake.Devices)
+	}
+	return 0
+}
+
+func (d *PreparedDevices) UUIDs() []string {
+	var deviceUUIDs []string
+	switch d.Type() {
+	case nascrd.FakeDeviceType:
+		for _, device := range d.Fake.Devices {
+			deviceUUIDs = append(deviceUUIDs, device.uuid)
+		}
+	}
+	return deviceUUIDs
 }
 
 type AllocatableDeviceInfo struct {
@@ -98,7 +118,7 @@ func (s *DeviceState) Prepare(ctx context.Context, claimUID string, allocation n
 
 	if allocation.Type() == nascrd.FakeDeviceType {
 		logger.V(4).Info("Preparing fake devices")
-		fakes, err := s.prepareFakes(ctx, claimUID, allocation.Fake)
+		fakes, err := s.prepareFakes(ctx, allocation.Fake)
 		if err != nil {
 			return nil, fmt.Errorf("allocation failed: %w", err)
 		}
@@ -152,20 +172,20 @@ func (s *DeviceState) GetUpdatedSpec(inspec *nascrd.NodeAllocationStateSpec) *na
 	return outspec
 }
 
-func (s *DeviceState) prepareFakes(ctx context.Context, claimUID string, allocated *nascrd.AllocatedFakes) (*PreparedFakes, error) {
+func (s *DeviceState) prepareFakes(ctx context.Context, allocated *nascrd.AllocatedFakes) (*PreparedFakes, error) {
 	logger := klog.FromContext(ctx)
 	prepared := &PreparedFakes{}
 
 	for _, device := range allocated.Devices {
-		fakeInfo := s.allocatable[device.UUID].FakeInfo
-
 		if _, ok := s.allocatable[device.UUID]; !ok {
 			return nil, fmt.Errorf("requested Fake does not exist: %q", device.UUID)
 		}
 
+		fakeInfo := s.allocatable[device.UUID].FakeInfo
+
 		if device.Split > 0 {
 			logger.Info("Detected split device. Preparing new device", "parentUID", device.UUID, "split", device.Split)
-			splittedFakeInfo := enumerateSplittedFakeDevices(ctx, device.UUID, device.Split)
+			splittedFakeInfo := enumerateSplittedFakeDevices(ctx, device.UUID, fakeInfo.model, device.Split)
 			prepared.Devices = append(prepared.Devices, splittedFakeInfo...)
 		} else {
 			logger.Info("Preparing fake device", "deviceUID", device.UUID)
@@ -175,7 +195,7 @@ func (s *DeviceState) prepareFakes(ctx context.Context, claimUID string, allocat
 	return prepared, nil
 }
 
-func (s *DeviceState) unprepareFakes(claimUID string, devices *PreparedDevices) error {
+func (s *DeviceState) unprepareFakes(_ string, _ *PreparedDevices) error {
 	return nil
 }
 
@@ -237,4 +257,32 @@ func (s *DeviceState) syncPreparedDevicesToCRDSpec(spec *nascrd.NodeAllocationSt
 		outcas[claim] = prepared
 	}
 	spec.PreparedDevices = outcas
+}
+
+func (s *DeviceState) getResourceModelFromAllocatableDevices() resourceapi.ResourceModel {
+	var instances []resourceapi.NamedResourcesInstance
+	for _, device := range s.allocatable {
+		instance := resourceapi.NamedResourcesInstance{
+			Name: strings.ToLower(device.uuid),
+			Attributes: []resourceapi.NamedResourcesAttribute{
+				{
+					Name: "uuid",
+					NamedResourcesAttributeValue: resourceapi.NamedResourcesAttributeValue{
+						StringValue: &device.uuid,
+					},
+				},
+				{
+					Name: "model",
+					NamedResourcesAttributeValue: resourceapi.NamedResourcesAttributeValue{
+						StringValue: &device.model,
+					},
+				},
+			},
+		}
+		instances = append(instances, instance)
+	}
+
+	return resourceapi.ResourceModel{
+		NamedResources: &resourceapi.NamedResourcesResources{Instances: instances},
+	}
 }

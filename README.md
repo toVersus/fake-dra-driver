@@ -68,7 +68,7 @@ helm upgrade -i \
   --create-namespace \
   --namespace fake-system \
   fake-dra-driver \
-  ../deployments/helm/fake-dra-driver
+  deployments/helm/fake-dra-driver
 ```
 
 Double check the driver components have come up successfully:

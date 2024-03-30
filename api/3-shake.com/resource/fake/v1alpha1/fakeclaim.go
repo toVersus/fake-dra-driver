@@ -1,10 +1,28 @@
 package v1alpha1
 
-import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+import (
+	"fmt"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
 
 type FakeClaimParametersSpec struct {
-	Count int `json:"count,omitempty"`
-	Split int `json:"split,omitempty"`
+	Count    int           `json:"count,omitempty"`
+	Split    int           `json:"split,omitempty"`
+	Selector *FakeSelector `json:"selector,omitempty"`
+}
+
+type FakeSelector struct {
+	Model *string `json:"model,omitempty"`
+}
+
+// ToNamedResourcesSelector converts a FakeSelector into a selector for use with
+// the NamedResources structured model
+func (s FakeSelector) ToNamedResourcesSelector() string {
+	if s.Model != nil {
+		return fmt.Sprintf(`attributes.string["model"] == %q`, *s.Model)
+	}
+	return "()"
 }
 
 // +genclient
