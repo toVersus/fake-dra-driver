@@ -316,10 +316,118 @@ Spec:
 (...)
 ```
 
+Additionally, the Fake DRA driver converts FakeResourceClaims to ResourceClaimParameters, which is a core Kubernetes resource introduced in 1.30 with the [KEP-4381: DRA Structured Parameters](https://github.com/kubernetes/enhancements/issues/4381).
+
+```console
+$ kubectl describe resourceclaimparameters -n test5
+Name:         resource-claim-parameters-xbrjt
+Namespace:    test5
+Labels:       <none>
+Annotations:  <none>
+API Version:  resource.k8s.io/v1alpha2
+Driver Requests:
+  Driver Name:  fake.resource.3-shake.com
+  Requests:
+    Named Resources:
+      Selector:         true
+    Vendor Parameters:  <nil>
+    Named Resources:
+      Selector:         true
+    Vendor Parameters:  <nil>
+    Named Resources:
+      Selector:         true
+    Vendor Parameters:  <nil>
+    Named Resources:
+      Selector:         true
+    Vendor Parameters:  <nil>
+  Vendor Parameters:
+    Count:  4
+    Split:  2
+Generated From:
+  API Group:  fake.resource.3-shake.com
+  Kind:       FakeClaimParameters
+  Name:       multiple-fakes
+Kind:         ResourceClaimParameters
+Metadata:
+  Creation Timestamp:  2024-04-20T07:45:09Z
+  Generate Name:       resource-claim-parameters-
+  Owner References:
+    API Version:           fake.resource.3-shake.com/v1alpha1
+    Block Owner Deletion:  true
+    Kind:                  FakeClaimParameters
+    Name:                  multiple-fakes
+    UID:                   5bdb33bb-bbd0-4f67-ac90-0c95bebfebaa
+  Resource Version:        842
+  UID:                     5d3f979e-beff-4c79-bf1b-3caef4f2d0b5
+Shareable:                 true
+Events:                    <none>
+```
+
 Once you have verified everything is running correctly, delete an example app:
 
 ```sh
 kubectl delete --wait=false --filename=fake-test5.yaml
+```
+
+Next, deploy another example app that demonstrate how CEL based resource selector works:
+
+```sh
+kubectl apply --filename=fake-test7.yaml
+```
+
+CEL rules are found in the NamedResource selector, which is the `.spec.selector' in FakeClaimParameters that gets translated into a CEL rule:
+
+```console
+❯ kubectl describe resourceclaimparameters -n test7
+Name:         resource-claim-parameters-zbl72
+Namespace:    test7
+Labels:       <none>
+Annotations:  <none>
+API Version:  resource.k8s.io/v1alpha2
+Driver Requests:
+  Driver Name:  fake.resource.3-shake.com
+  Requests:
+    Named Resources:
+      Selector:         attributes.string["model"] == "ULTRA_10"
+    Vendor Parameters:  <nil>
+    Named Resources:
+      Selector:         attributes.string["model"] == "ULTRA_10"
+    Vendor Parameters:  <nil>
+    Named Resources:
+      Selector:         attributes.string["model"] == "ULTRA_10"
+    Vendor Parameters:  <nil>
+    Named Resources:
+      Selector:         attributes.string["model"] == "ULTRA_10"
+    Vendor Parameters:  <nil>
+  Vendor Parameters:
+    Count:  4
+    Selector:
+      Model:  ULTRA_10
+    Split:    2
+Generated From:
+  API Group:  fake.resource.3-shake.com
+  Kind:       FakeClaimParameters
+  Name:       multiple-fakes
+Kind:         ResourceClaimParameters
+Metadata:
+  Creation Timestamp:  2024-04-20T12:55:08Z
+  Generate Name:       resource-claim-parameters-
+  Owner References:
+    API Version:           fake.resource.3-shake.com/v1alpha1
+    Block Owner Deletion:  true
+    Kind:                  FakeClaimParameters
+    Name:                  multiple-fakes
+    UID:                   d2f18779-7f80-4b7b-9c24-78281f324570
+  Resource Version:        20866
+  UID:                     b4f02f10-c6ff-4cdc-a994-7f03b9f887be
+Shareable:                 true
+Events:                    <none>
+```
+
+Once you have verified everything is running correctly, delete an example app:
+
+```sh
+kubectl delete --wait=false --filename=fake-test7.yaml
 ```
 
 Finally, you can run the following to cleanup your environment and delete the `kind` cluster started previously:
