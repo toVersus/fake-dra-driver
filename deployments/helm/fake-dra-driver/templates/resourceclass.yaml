@@ -4,3 +4,4 @@ kind: ResourceClass
 metadata:
   name: fake.3-shake.com
 driverName: fake.resource.3-shake.com
+structuredParameters: true
