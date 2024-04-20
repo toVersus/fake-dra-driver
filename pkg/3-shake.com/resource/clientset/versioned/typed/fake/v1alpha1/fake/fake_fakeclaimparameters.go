@@ -23,7 +23,6 @@ import (
 	v1alpha1 "github.com/toVersus/fake-dra-driver/api/3-shake.com/resource/fake/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -35,9 +34,9 @@ type FakeFakeClaimParameters struct {
 	ns   string
 }
 
-var fakeclaimparametersResource = schema.GroupVersionResource{Group: "fake.resource.3-shake.com", Version: "v1alpha1", Resource: "fakeclaimparameters"}
+var fakeclaimparametersResource = v1alpha1.SchemeGroupVersion.WithResource("fakeclaimparameters")
 
-var fakeclaimparametersKind = schema.GroupVersionKind{Group: "fake.resource.3-shake.com", Version: "v1alpha1", Kind: "FakeClaimParameters"}
+var fakeclaimparametersKind = v1alpha1.SchemeGroupVersion.WithKind("FakeClaimParameters")
 
 // Get takes name of the fakeClaimParameters, and returns the corresponding fakeClaimParameters object, and an error if there is any.
 func (c *FakeFakeClaimParameters) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.FakeClaimParameters, err error) {
