@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	resourcev1 "k8s.io/api/resource/v1alpha2"
+	resourceapi "k8s.io/api/resource/v1alpha2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/dynamic-resource-allocation/controller"
 	"k8s.io/klog/v2"
@@ -41,7 +41,7 @@ func NewDriver(config *Config) *driver {
 	}
 }
 
-func (d *driver) GetClassParameters(ctx context.Context, class *resourcev1.ResourceClass) (interface{}, error) {
+func (d *driver) GetClassParameters(ctx context.Context, class *resourceapi.ResourceClass) (interface{}, error) {
 	logger := klog.FromContext(ctx).WithValues("resourceClass", klog.KObj(class))
 	logger.V(4).Info("GetClassParameters gets called to retrieve the parameter object referenced by a ResourceClass")
 	if class.ParametersRef == nil {
@@ -58,7 +58,7 @@ func (d *driver) GetClassParameters(ctx context.Context, class *resourcev1.Resou
 	return &dc.Spec, nil
 }
 
-func (d *driver) GetClaimParameters(ctx context.Context, claim *resourcev1.ResourceClaim, class *resourcev1.ResourceClass, classParameters interface{}) (interface{}, error) {
+func (d *driver) GetClaimParameters(ctx context.Context, claim *resourceapi.ResourceClaim, class *resourceapi.ResourceClass, classParameters interface{}) (interface{}, error) {
 	logger := klog.FromContext(ctx).WithValues(
 		"resourceClaim", klog.KObj(claim),
 		"resourceClass", klog.KObj(class),
@@ -86,8 +86,18 @@ func (d *driver) GetClaimParameters(ctx context.Context, claim *resourcev1.Resou
 	return nil, fmt.Errorf("unknown ResourceClaim.ParametersRef.Kind: %v", claim.Spec.ParametersRef.Kind)
 }
 
-func (d *driver) Allocate(ctx context.Context, claim *resourcev1.ResourceClaim, claimParameters interface{},
-	class *resourcev1.ResourceClass, classParameters interface{}, selectedNode string) (*resourcev1.AllocationResult, error) {
+func (d *driver) Allocate(ctx context.Context, cas []*controller.ClaimAllocation, selectedNode string) {
+	// In production version of the driver the common operations for every
+	// d.allocate looped call should be done prior this loop, and can be reused
+	// for every d.allocate() looped call.
+	// E.g.: selectedNode=="" check, client stup and CRD fetching.
+	for _, ca := range cas {
+		ca.Allocation, ca.Error = d.allocate(ctx, ca.Claim, ca.ClaimParameters, ca.Class, ca.ClassParameters, selectedNode)
+	}
+}
+
+func (d *driver) allocate(ctx context.Context, claim *resourceapi.ResourceClaim, claimParameters interface{},
+	class *resourceapi.ResourceClass, classParameters interface{}, selectedNode string) (*resourceapi.AllocationResult, error) {
 	logger := klog.FromContext(ctx).WithValues(
 		"resourceClaim", klog.KObj(claim),
 		"resourceClass", klog.KObj(class),
@@ -156,7 +166,7 @@ func (d *driver) Allocate(ctx context.Context, claim *resourcev1.ResourceClaim, 
 	return buildAllocationResult(ctx, selectedNode, true), nil
 }
 
-func (d *driver) Deallocate(ctx context.Context, claim *resourcev1.ResourceClaim) error {
+func (d *driver) Deallocate(ctx context.Context, claim *resourceapi.ResourceClaim) error {
 	logger := klog.FromContext(ctx).WithValues(
 		"resourceClaim", klog.KObj(claim),
 	)
@@ -238,7 +248,7 @@ func (d *driver) UnsuitableNodes(ctx context.Context, pod *corev1.Pod, cas []*co
 	return nil
 }
 
-func buildAllocationResult(ctx context.Context, selectedNode string, shareable bool) *resourcev1.AllocationResult {
+func buildAllocationResult(ctx context.Context, selectedNode string, shareable bool) *resourceapi.AllocationResult {
 	logger := klog.FromContext(ctx)
 	nodeSelector := &corev1.NodeSelector{
 		NodeSelectorTerms: []corev1.NodeSelectorTerm{
@@ -254,7 +264,7 @@ func buildAllocationResult(ctx context.Context, selectedNode string, shareable b
 		},
 	}
 	logger.V(4).Info("Building allocation result for selected node", "nodeSelector", klog.Format(nodeSelector))
-	return &resourcev1.AllocationResult{
+	return &resourceapi.AllocationResult{
 		AvailableOnNodes: nodeSelector,
 		Shareable:        shareable,
 	}
@@ -335,7 +345,7 @@ func (d *driver) unsuitableNode(ctx context.Context, pod *corev1.Pod, allcas []*
 	return nil
 }
 
-func getSelectedNode(ctx context.Context, claim *resourcev1.ResourceClaim) string {
+func getSelectedNode(ctx context.Context, claim *resourceapi.ResourceClaim) string {
 	logger := klog.FromContext(ctx)
 	if claim.Status.Allocation == nil {
 		logger.Info("Resource claim allocation status is nil. Cannot get selected node")

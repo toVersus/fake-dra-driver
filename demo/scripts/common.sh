@@ -28,12 +28,12 @@ SCRIPTS_DIR="$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)"
 # The registry, image and tag for the example driver
 # : ${DRIVER_IMAGE_REGISTRY:="registry.example.com"}
 : ${DRIVER_IMAGE_NAME:="${DRIVER_NAME}"}
-: ${DRIVER_IMAGE_TAG:="v0.1.0"}
+: ${DRIVER_IMAGE_TAG:="v0.1.1"}
 : ${DRIVER_IMAGE_PLATFORM:="ubuntu22.04"}
 
 # The kubernetes tag to build the kind cluster from
 # From https://github.com/kubernetes/kubernetes/tags
-: ${KIND_K8S_TAG:="v1.27.1"}
+: ${KIND_K8S_TAG:="v1.28.9"}
 
 # The containerd tag to patch the kind image with
 # From https://github.com/kind-ci/containerd-nightlies/releases

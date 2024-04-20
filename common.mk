@@ -17,7 +17,7 @@ GOLANG_VERSION ?= 1.20.3
 DRIVER_NAME := fake-dra-driver
 MODULE := github.com/toVersus/$(DRIVER_NAME)
 
-VERSION  ?= v0.1.0
+VERSION  ?= v0.1.1
 vVERSION := v$(VERSION:v%=%)
 
 VENDOR := 3-shake.com
