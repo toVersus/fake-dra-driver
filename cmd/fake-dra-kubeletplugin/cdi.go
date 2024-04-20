@@ -106,6 +106,10 @@ func (cdi *CDIHandler) CreateClaimSpecFile(ctx context.Context, claimUID string,
 				ContainerEdits: cdispec.ContainerEdits{
 					Env: []string{
 						fmt.Sprintf("FAKE_DEVICE_%d=%s", fakeIndex, device.uuid),
+						// Node 内でモデルは同じため、分割された Fake デバイスが複数あったとしても同じモデルを使うことになる
+						// モデル名の環境変数のキーも値も同じため環境変数は 1 つ設定すれば十分だが、
+						// モデル名の環境変数をデバイスの数だけ設定して重複排除してもらう
+						fmt.Sprintf("FAKE_DEVICE_MODEL=%s", device.model),
 					},
 				},
 			}

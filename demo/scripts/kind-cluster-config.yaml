@@ -34,3 +34,10 @@ nodes:
     nodeRegistration:
       kubeletExtraArgs:
         v: "1"
+- role: worker
+  kubeadmConfigPatches:
+  - |
+    kind: JoinConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        v: "1"

@@ -196,8 +196,11 @@ func newResourceClaimParametersFromFakeClaimParameters(fakeClaimParameters *fake
 		resourceCount = fakeClaimParameters.Spec.Count
 	}
 
-	// TODO: FakeClaimParametes で selector をサポート
 	selector := "true"
+	if fakeClaimParameters.Spec.Selector != nil {
+		selector = fakeClaimParameters.Spec.Selector.ToNamedResourcesSelector()
+	}
+
 	shareable := true
 
 	var resourceRequests []resourceapi.ResourceRequest

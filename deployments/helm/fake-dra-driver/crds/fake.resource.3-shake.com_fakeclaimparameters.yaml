@@ -41,6 +41,11 @@ spec:
             properties:
               count:
                 type: integer
+              selector:
+                properties:
+                  model:
+                    type: string
+                type: object
               split:
                 type: integer
             type: object

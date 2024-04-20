@@ -1,0 +1,57 @@
+# One pod, one container
+# Asking for 4 splitted distinct Fakes with 2 splitted each with ULTRA_10 model
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test7
+
+---
+apiVersion: fake.resource.3-shake.com/v1alpha1
+kind: FakeClaimParameters
+metadata:
+  namespace: test7
+  name: multiple-fakes
+spec:
+  count: 4
+  split: 2
+  selector:
+    model: ULTRA_10
+
+---
+apiVersion: resource.k8s.io/v1alpha2
+kind: ResourceClaimTemplate
+metadata:
+  namespace: test7
+  name: multiple-fakes
+spec:
+  spec:
+    resourceClassName: fake.3-shake.com
+    parametersRef:
+      apiGroup: fake.resource.3-shake.com
+      kind: FakeClaimParameters
+      name: multiple-fakes
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  namespace: test7
+  name: pod0
+  labels:
+    app: pod
+spec:
+  terminationGracePeriodSeconds: 3
+  containers:
+  - name: ctr0
+    image: cgr.dev/chainguard/wolfi-base:latest
+    command: ["ash", "-c"]
+    args: ["export; sleep infinity"]
+    resources:
+      claims:
+      - name: fakes
+  resourceClaims:
+  - name: fakes
+    source:
+      resourceClaimTemplateName: multiple-fakes
