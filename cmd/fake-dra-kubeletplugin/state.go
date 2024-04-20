@@ -168,7 +168,7 @@ func (s *DeviceState) prepareFakes(ctx context.Context, claimUID string, allocat
 
 		if device.Split > 0 {
 			logger.Info("Detected split device. Preparing new device", "parentUID", device.UUID, "split", device.Split)
-			splittedFakeInfo := enumerateSplittedFakeDevices(ctx, device.UUID, device.Split)
+			splittedFakeInfo := enumerateSplittedFakeDevices(ctx, device.UUID, fakeInfo.model, device.Split)
 			prepared.Devices = append(prepared.Devices, splittedFakeInfo...)
 		} else {
 			logger.Info("Preparing fake device", "deviceUID", device.UUID)

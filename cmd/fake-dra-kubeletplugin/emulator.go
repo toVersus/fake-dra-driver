@@ -10,15 +10,17 @@ import (
 )
 
 const (
-	fakeModel        = "LATEST-FAKE-MODEL"
-	fakeDevicePrefix = "FAKE-"
+	perNodeFakeDevices = 8
+	fakeModelUltra10   = "ULTRA_10"
+	fakeModelUltra100  = "ULTRA_100"
+	fakeDevicePrefix   = "FAKE-"
 )
 
 var (
 	fakeDevicePrefixLength = len(fakeDevicePrefix)
 )
 
-func enumerateSplittedFakeDevices(ctx context.Context, parentUUID string, split int) []*FakeInfo {
+func enumerateSplittedFakeDevices(ctx context.Context, parentUUID string, model string, split int) []*FakeInfo {
 	logger := klog.FromContext(ctx).WithValues("parentUID", parentUUID)
 	uuids := generateUUIDs(parentUUID, split)
 
@@ -26,7 +28,7 @@ func enumerateSplittedFakeDevices(ctx context.Context, parentUUID string, split 
 	for _, uuid := range uuids {
 		deviceInfo := &FakeInfo{
 			uuid:   uuid,
-			model:  fakeModel,
+			model:  model,
 			parent: parentUUID,
 		}
 		logger.Info("Enumerating split fake devices", "deviceUID", uuid)
@@ -38,11 +40,11 @@ func enumerateSplittedFakeDevices(ctx context.Context, parentUUID string, split 
 
 func enumerateAllPossibleDevices(ctx context.Context) (AllocatableDevices, error) {
 	logger := klog.FromContext(ctx)
-	numFakes := 8
 	seed := os.Getenv("NODE_NAME")
-	uuids := generateUUIDs(seed, numFakes)
+	uuids := generateUUIDs(seed, perNodeFakeDevices)
+	fakeModel := generateModel(seed)
 
-	alldevices := make(AllocatableDevices)
+	allDevices := make(AllocatableDevices)
 	for _, uuid := range uuids {
 		deviceInfo := &AllocatableDeviceInfo{
 			FakeInfo: &FakeInfo{
@@ -51,9 +53,9 @@ func enumerateAllPossibleDevices(ctx context.Context) (AllocatableDevices, error
 			},
 		}
 		logger.Info("Enumerating fake devices", "deviceUID", uuid)
-		alldevices[uuid] = deviceInfo
+		allDevices[uuid] = deviceInfo
 	}
-	return alldevices, nil
+	return allDevices, nil
 }
 
 func generateUUIDs(seed string, count int) []string {
@@ -67,6 +69,18 @@ func generateUUIDs(seed string, count int) []string {
 		uuids[i] = fakeDevicePrefix + uuid.String()
 	}
 	return uuids
+}
+
+func generateModel(seed string) string {
+	rand := rand.New(rand.NewSource(hash(seed)))
+	// Randomly select a model from fakeModel10 and fakeModel100
+	var fakeModel string
+	if rand.Intn(2) == 0 {
+		fakeModel = fakeModelUltra10
+	} else {
+		fakeModel = fakeModelUltra100
+	}
+	return fakeModel
 }
 
 func hash(s string) int64 {
