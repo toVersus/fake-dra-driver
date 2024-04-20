@@ -5,7 +5,7 @@ VERSION  ?= v0.1.2
 # vVERSION represents the version with a guaranteed v-prefix
 vVERSION := v$(VERSION:v%=%)
 
-GOLANG_VERSION ?= 1.21.2
+GOLANG_VERSION ?= 1.22.2
 
 # These variables are only needed when building a local image
 CLIENT_GEN_VERSION ?= v0.29.4
