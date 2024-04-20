@@ -18,6 +18,7 @@ TR       ?= tr
 DIST_DIR ?= $(CURDIR)/dist
 
 include $(CURDIR)/common.mk
+include $(CURDIR)/versions.mk
 
 BUILDIMAGE_TAG ?= golang$(GOLANG_VERSION)
 BUILDIMAGE ?= $(IMAGE_NAME)-build:$(BUILDIMAGE_TAG)
@@ -134,6 +135,10 @@ generate-crds: vendor
 		$(DOCKER) build \
 			--progress=plain \
 			--build-arg GOLANG_VERSION="$(GOLANG_VERSION)" \
+			--build-arg CLIENT_GEN_VERSION="$(CLIENT_GEN_VERSION)" \
+			--build-arg CONTROLLER_GEN_VERSION="$(CONTROLLER_GEN_VERSION)" \
+			--build-arg GOLANGCI_LINT_VERSION="$(GOLANGCI_LINT_VERSION)" \
+			--build-arg MOQ_VERSION="$(MOQ_VERSION)" \
 			--tag $(BUILDIMAGE) \
 			-f $(^) \
 			docker; \

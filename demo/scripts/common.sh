@@ -14,30 +14,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This scripts invokes `kind build image` so that the resulting
-# image has a containerd with CDI support.
-#
-# Usage: kind-build-image.sh <tag of generated image>
-
 # A reference to the current directory where this script is located
 SCRIPTS_DIR="$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)"
 
-# The name of the example driver 
-: ${DRIVER_NAME:=fake-dra-driver}
+PROJECT_DIR="$(cd -- "$( dirname -- "${SCRIPTS_DIR}/../../.." )" &> /dev/null && pwd)"
 
-# The registry, image and tag for the example driver
-# : ${DRIVER_IMAGE_REGISTRY:="registry.example.com"}
-: ${DRIVER_IMAGE_NAME:="${DRIVER_NAME}"}
-: ${DRIVER_IMAGE_TAG:="v0.1.2"}
+# We extract information from versions.mk
+function from_versions_mk() {
+    local makevar=$1
+    local value=$(grep -E "^\s*${makevar}\s+[\?:]= " ${PROJECT_DIR}/versions.mk)
+    echo ${value##*= }
+}
+DRIVER_NAME=$(from_versions_mk "DRIVER_NAME")
+DRIVER_IMAGE_VERSION=$(from_versions_mk "VERSION")
+
+: ${DRIVER_IMAGE_NAME:=${DRIVER_NAME}}
 : ${DRIVER_IMAGE_PLATFORM:="ubuntu22.04"}
+: ${DRIVER_IMAGE_TAG:=${DRIVER_IMAGE_VERSION}}
+# The derived name of the driver image to build
+: ${DRIVER_IMAGE:="${DRIVER_IMAGE_NAME}:${DRIVER_IMAGE_TAG}"}
 
-# The kubernetes tag to build the kind cluster from
-# From https://github.com/kubernetes/kubernetes/tags
-: ${KIND_K8S_TAG:="v1.28.9"}
-
-# The containerd tag to patch the kind image with
-# From https://github.com/kind-ci/containerd-nightlies/releases
-: ${KIND_CONTAINERD_TAG:="containerd-1.7.0-79-g2503bef58"}
+# See also https://hub.docker.com/r/kindest/node/tags
+: ${KIND_K8S_REPO:="https://github.com/kubernetes/kubernetes.git"}
+: ${KIND_K8S_TAG:="v1.29.4"}
 
 # The name of the kind cluster to create
 : ${KIND_CLUSTER_NAME:="${DRIVER_NAME}-cluster"}
@@ -45,10 +44,5 @@ SCRIPTS_DIR="$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)"
 # The path to kind's cluster configuration file
 : ${KIND_CLUSTER_CONFIG_PATH:="${SCRIPTS_DIR}/kind-cluster-config.yaml"}
 
-# The derived name of the driver image to build
-# DRIVER_IMAGE="${DRIVER_IMAGE_REGISTRY}/${DRIVER_IMAGE_NAME}:${DRIVER_IMAGE_TAG}"
-DRIVER_IMAGE="${DRIVER_IMAGE_NAME}:${DRIVER_IMAGE_TAG}"
-
-# The derived name of the kind image to build
-KIND_IMAGE="kindest/node:${KIND_K8S_TAG}-${KIND_CONTAINERD_TAG}"
-
+# The kind image to use. This image will be built if it is not available.
+: ${KIND_IMAGE:="kindest/node:${KIND_K8S_TAG}"}

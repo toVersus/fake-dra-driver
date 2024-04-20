@@ -14,11 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This scripts invokes `kind build image` so that the resulting
-# image has a containerd with CDI support.
-#
-# Usage: kind-build-image.sh <tag of generated image>
-
 # A reference to the current directory where this script is located
 CURRENT_DIR="$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)"
 
@@ -28,6 +23,7 @@ set -o pipefail
 source "${CURRENT_DIR}/common.sh"
 
 kind create cluster \
+	--retain \
 	--name "${KIND_CLUSTER_NAME}" \
 	--image "${KIND_IMAGE}" \
 	--config "${KIND_CLUSTER_CONFIG_PATH}"

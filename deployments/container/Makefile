@@ -19,6 +19,7 @@ DISTRIBUTIONS := ubuntu22.04
 DOCKERFILE := $(CURDIR)/deployments/container/Dockerfile
 
 include $(CURDIR)/common.mk
+include $(CURDIR)/versions.mk
 
 IMAGE_TAG := $(VERSION)
 IMAGE = $(IMAGE_NAME):$(IMAGE_TAG)

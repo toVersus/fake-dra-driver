@@ -12,14 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GOLANG_VERSION ?= 1.20.3
-
-DRIVER_NAME := fake-dra-driver
-MODULE := github.com/toVersus/$(DRIVER_NAME)
-
-VERSION  ?= v0.1.2
-vVERSION := v$(VERSION:v%=%)
-
 VENDOR := 3-shake.com
 APIS := fake/nas/v1alpha1 fake/v1alpha1
 
