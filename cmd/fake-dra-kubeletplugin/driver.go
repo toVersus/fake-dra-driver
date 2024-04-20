@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -13,6 +14,7 @@ import (
 
 	nascrd "github.com/toVersus/fake-dra-driver/api/3-shake.com/resource/fake/nas/v1alpha1"
 	nasclient "github.com/toVersus/fake-dra-driver/api/3-shake.com/resource/fake/nas/v1alpha1/client"
+	fakecrd "github.com/toVersus/fake-dra-driver/api/3-shake.com/resource/fake/v1alpha1"
 )
 
 var _ drapbv1.NodeServer = &driver{}
@@ -139,6 +141,18 @@ func (d *driver) nodePrepareResource(ctx context.Context, claim *drapbv1.Claim) 
 		return &drapbv1.NodePrepareResourceResponse{CDIDevices: prepared}
 	}
 
+	if len(claim.StructuredResourceHandle) > 0 {
+		logger.V(4).Info("[Structured Parameters] Allocating devices for claim")
+		err = d.allocateDevices(ctx, claim)
+		if err != nil {
+			return &drapbv1.NodePrepareResourceResponse{
+				Error: fmt.Sprintf("error allocating devices for claim %v: %s", claim.Uid, err),
+			}
+		}
+	} else {
+		logger.V(4).Info("No StructuredResourceHandle found in claim, skipping allocation of devices")
+	}
+
 	logger.V(4).Info("Preparing devices for claim")
 	prepared, err = d.state.Prepare(ctx, claim.Uid, d.nascrd.Spec.AllocatedClaims[claim.Uid])
 	if err != nil {
@@ -179,6 +193,63 @@ func (d *driver) isPrepared(ctx context.Context, claimUID string) (bool, []strin
 	return false, nil, nil
 }
 
+func (d *driver) allocateDevices(ctx context.Context, claim *drapbv1.Claim) error {
+	logger := klog.FromContext(ctx)
+
+	logger.V(4).Info("Getting vendor claim parameters", "claim", claim.Name)
+	fakeClaimParams := fakecrd.FakeClaimParametersSpec{}
+	logger.V(2).Info("Unmarshalling vendor request parameters", "raw", string(claim.StructuredResourceHandle[0].VendorClaimParameters.Raw))
+	if err := json.Unmarshal(claim.StructuredResourceHandle[0].VendorClaimParameters.Raw, &fakeClaimParams); err != nil {
+		return fmt.Errorf("error unmarshalling vendor request parameters: %w", err)
+	}
+	split := fakeClaimParams.Split
+
+	logger.V(4).Info("Allocating devices for claim", "claim", claim.Name)
+	allocatedFakes := []nascrd.AllocatedFake{}
+	for _, r := range claim.StructuredResourceHandle[0].Results {
+		name := r.AllocationResultModel.NamedResources.Name
+		logger.V(4).Info("Allocate named resource", "name", name)
+		fake := nascrd.AllocatedFake{
+			UUID: fakeDevicePrefix + name[fakeDevicePrefixLength:],
+		}
+
+		if split > 0 {
+			logger.V(4).Info("Detected split device. Allocating splitted devices", "name", name, "split", split)
+			fake.Split = split
+		}
+
+		allocatedFakes = append(allocatedFakes, fake)
+	}
+	allocated := nascrd.AllocatedDevices{
+		Fake: &nascrd.AllocatedFakes{
+			Devices: allocatedFakes,
+		},
+	}
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := d.nasclient.Get()
+		if err != nil {
+			return err
+		}
+
+		if len(d.nascrd.Spec.AllocatedClaims) == 0 {
+			d.nascrd.Spec.AllocatedClaims = make(map[string]nascrd.AllocatedDevices)
+		}
+		d.nascrd.Spec.AllocatedClaims[claim.Uid] = allocated
+
+		err = d.nasclient.Update(&d.nascrd.Spec)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (d *driver) NodeUnprepareResources(ctx context.Context, req *drapbv1.NodeUnprepareResourcesRequest) (*drapbv1.NodeUnprepareResourcesResponse, error) {
 	logger := klog.FromContext(ctx)
 	logger.Info("NodeUnPrepareResource is called", "nclaims", len(req.Claims))
@@ -208,6 +279,18 @@ func (d *driver) nodeUnprepareResource(ctx context.Context, claim *drapbv1.Claim
 	if isUnprepared {
 		logger.Info("Already unprepared, nothing to do for claim", "claimUID", claim.Uid)
 		return &drapbv1.NodeUnprepareResourceResponse{}
+	}
+
+	if len(claim.StructuredResourceHandle) > 0 {
+		logger.V(4).Info("[Structured Parameters] Deallocating devices for claim")
+		err = d.deallocateDevices(ctx, claim)
+		if err != nil {
+			return &drapbv1.NodeUnprepareResourceResponse{
+				Error: fmt.Sprintf("error deallocating devices for claim %v: %v", claim.Uid, err),
+			}
+		}
+	} else {
+		logger.V(4).Info("No StructuredResourceHandle found in claim, skipping deallocation of devices")
 	}
 
 	logger.V(4).Info("Unpreparing devices for claim", "claimUID", claim.Uid)
@@ -242,4 +325,28 @@ func (d *driver) isUnprepared(ctx context.Context, claimUID string) (bool, error
 	}
 	logger.Info("Claim is prepared", "claimUID", claimUID)
 	return false, nil
+}
+
+func (d *driver) deallocateDevices(ctx context.Context, claim *drapbv1.Claim) error {
+	logger := klog.FromContext(ctx)
+	logger.V(4).Info("Deallocating devices for claim", "claim", claim)
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := d.nasclient.Get()
+		if err != nil {
+			return err
+		}
+
+		delete(d.nascrd.Spec.AllocatedClaims, claim.Uid)
+
+		err = d.nasclient.Update(&d.nascrd.Spec)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }

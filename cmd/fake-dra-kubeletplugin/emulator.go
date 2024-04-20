@@ -10,7 +10,12 @@ import (
 )
 
 const (
-	fakeModel = "LATEST-FAKE-MODEL"
+	fakeModel        = "LATEST-FAKE-MODEL"
+	fakeDevicePrefix = "FAKE-"
+)
+
+var (
+	fakeDevicePrefixLength = len(fakeDevicePrefix)
 )
 
 func enumerateSplittedFakeDevices(ctx context.Context, parentUUID string, split int) []*FakeInfo {
@@ -59,7 +64,7 @@ func generateUUIDs(seed string, count int) []string {
 		charset := make([]byte, 16)
 		rand.Read(charset)
 		uuid, _ := uuid.FromBytes(charset)
-		uuids[i] = "FAKE-" + uuid.String()
+		uuids[i] = fakeDevicePrefix + uuid.String()
 	}
 	return uuids
 }
