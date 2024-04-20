@@ -8,7 +8,7 @@ vVERSION := v$(VERSION:v%=%)
 GOLANG_VERSION ?= 1.22.2
 
 # These variables are only needed when building a local image
-CLIENT_GEN_VERSION ?= v0.29.4
+CLIENT_GEN_VERSION ?= v0.30.0
 CONTROLLER_GEN_VERSION ?= v0.14.0
 GOLANGCI_LINT_VERSION ?= v1.52.0
 MOQ_VERSION ?= v0.3.4
