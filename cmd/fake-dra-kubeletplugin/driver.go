@@ -112,39 +112,56 @@ func (d *driver) nodePrepareResource(ctx context.Context, claim *drapbv1.Claim) 
 	d.Lock()
 	defer d.Unlock()
 
-	var prepared []string
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		logger.V(4).Info("Getting NodeAllocationState and hold it onto driver struct for preparing resource")
-		err := d.nasclient.Get()
-		if err != nil {
-			return err
-		}
-		logger.V(4).Info("Preparing devices for claim")
-		prepared, err = d.state.Prepare(ctx, claim.Uid, d.nascrd.Spec.AllocatedClaims[claim.Uid])
-		if err != nil {
-			return fmt.Errorf("error preparing devices for claim %q: %w", claim.Uid, err)
-		}
-
-		logger.V(4).Info("Updating spec of NodeAllocationState and add prepared devices to PreparedDevices field")
-		if err := d.nasclient.Update(d.state.GetUpdatedSpec(&d.nascrd.Spec)); err != nil {
-			if nestedErr := d.state.Unprepare(ctx, claim.Uid); nestedErr != nil {
-				logger.Error(errors.Join(err, nestedErr), "Error unpreparing resource after claim Update() failed")
-			} else {
-				logger.Error(err, "Error updating NodeAllocationState status to NotReady, so unpreparing earlier prepared resource")
-			}
-			return err
-		}
-
-		return nil
-	})
+	logger.V(4).Info("Getting NodeAllocationState and hold it onto driver struct for preparing resource")
+	isPrepared, prepared, err := d.isPrepared(ctx, claim.Uid)
 	if err != nil {
 		return &drapbv1.NodePrepareResourceResponse{
-			Error: fmt.Sprintf("failed to retry preparing resource: %s", err),
+			Error: fmt.Sprintf("error checking if claim is already prepared: %v", err),
+		}
+	}
+	if isPrepared {
+		logger.Info("Returning cached devices for claim", "claimUID", claim.Uid, "prepared", prepared)
+		return &drapbv1.NodePrepareResourceResponse{CDIDevices: prepared}
+	}
+
+	logger.V(4).Info("Preparing devices for claim")
+	prepared, err = d.state.Prepare(ctx, claim.Uid, d.nascrd.Spec.AllocatedClaims[claim.Uid])
+	if err != nil {
+		return &drapbv1.NodePrepareResourceResponse{
+			Error: fmt.Sprintf("error preparing devices for claim %v: %s", claim.Uid, err),
+		}
+	}
+
+	logger.V(4).Info("Updating spec of NodeAllocationState and add prepared devices to PreparedDevices field")
+	if err := d.nasclient.Update(d.state.GetUpdatedSpec(&d.nascrd.Spec)); err != nil {
+		if nestedErr := d.state.Unprepare(ctx, claim.Uid); nestedErr != nil {
+			logger.Error(errors.Join(err, nestedErr), "Error unpreparing resource after claim Update() failed")
+		} else {
+			logger.Error(err, "Error updating NodeAllocationState status to NotReady, so unpreparing earlier prepared resource")
+		}
+		return &drapbv1.NodePrepareResourceResponse{
+			Error: err.Error(),
 		}
 	}
 
 	logger.V(4).Info("Prepared devices for allocated claims", "devices", klog.Format(prepared))
 	return &drapbv1.NodePrepareResourceResponse{CDIDevices: prepared}
+}
+
+func (d *driver) isPrepared(ctx context.Context, claimUID string) (bool, []string, error) {
+	logger := klog.FromContext(ctx)
+
+	err := d.nasclient.Get()
+	if err != nil {
+		return false, nil, err
+	}
+	if prepared, exists := d.state.prepared[claimUID]; exists {
+		claimedDevices := d.state.cdi.GetClaimDevices(claimUID, prepared)
+		logger.V(4).Info("Claimed devices for claim", "claimUID", claimUID, "claimedDevices", claimedDevices)
+		return true, claimedDevices, nil
+	}
+	logger.Info("Claim is not prepared", "claimUID", claimUID)
+	return false, nil, nil
 }
 
 func (d *driver) NodeUnprepareResources(ctx context.Context, req *drapbv1.NodeUnprepareResourcesRequest) (*drapbv1.NodeUnprepareResourcesResponse, error) {
@@ -167,28 +184,47 @@ func (d *driver) nodeUnprepareResource(ctx context.Context, claim *drapbv1.Claim
 	ctx = klog.NewContext(ctx, logger)
 	logger.V(4).Info("NodeUnprepareResource is called")
 
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		logger.V(4).Info("Getting NodeAllocationState and hold it onto driver struct for unpreparing resource")
-		if err := d.nasclient.Get(); err != nil {
-			return err
-		}
-		logger.V(4).Info("Unpreparing devices for claim")
-		if err := d.state.Unprepare(ctx, claim.Uid); err != nil {
-			return fmt.Errorf("error unpreparing devices for claim %q: %w", claim.Uid, err)
-		}
-
-		if err := d.nasclient.Update(d.state.GetUpdatedSpec(&d.nascrd.Spec)); err != nil {
-			return err
-		}
-
-		return nil
-	})
+	isUnprepared, err := d.isUnprepared(ctx, claim.Uid)
 	if err != nil {
 		return &drapbv1.NodeUnprepareResourceResponse{
-			Error: fmt.Sprintf("error unpreparing resource: %s", err),
+			Error: fmt.Sprintf("error checking if claim is already unprepared: %v", err),
+		}
+	}
+	if isUnprepared {
+		logger.Info("Already unprepared, nothing to do for claim", "claimUID", claim.Uid)
+		return &drapbv1.NodeUnprepareResourceResponse{}
+	}
+
+	logger.V(4).Info("Unpreparing devices for claim", "claimUID", claim.Uid)
+	err = d.state.Unprepare(ctx, claim.Uid)
+	if err != nil {
+		return &drapbv1.NodeUnprepareResourceResponse{
+			Error: fmt.Sprintf("error unpreparing devices for claim: %s", err),
+		}
+
+	}
+
+	if err := d.nasclient.Update(d.state.GetUpdatedSpec(&d.nascrd.Spec)); err != nil {
+		return &drapbv1.NodeUnprepareResourceResponse{
+			Error: fmt.Sprintf("error updating NAS CRD after unpreparing devices for claim: %s", err),
 		}
 	}
 
 	logger.V(4).Info("Unprepared devices for unallocated resource claim")
 	return &drapbv1.NodeUnprepareResourceResponse{}
+}
+
+func (d *driver) isUnprepared(ctx context.Context, claimUID string) (bool, error) {
+	logger := klog.FromContext(ctx)
+
+	err := d.nasclient.Get()
+	if err != nil {
+		return false, err
+	}
+	if _, exists := d.state.prepared[claimUID]; !exists {
+		logger.V(4).Info("Claim is already unprepared", "claimUID", claimUID)
+		return true, nil
+	}
+	logger.Info("Claim is prepared", "claimUID", claimUID)
+	return false, nil
 }
