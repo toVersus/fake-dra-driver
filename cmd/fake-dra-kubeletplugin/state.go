@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
-	nascrd "github.com/toVersus/fake-dra-driver/api/3-shake.com/resource/fake/nas/v1alpha1"
+	resourceapi "k8s.io/api/resource/v1alpha2"
 	"k8s.io/klog/v2"
+
+	nascrd "github.com/toVersus/fake-dra-driver/api/3-shake.com/resource/fake/nas/v1alpha1"
 )
 
 type AllocatableDevices map[string]*AllocatableDeviceInfo
@@ -237,4 +240,32 @@ func (s *DeviceState) syncPreparedDevicesToCRDSpec(spec *nascrd.NodeAllocationSt
 		outcas[claim] = prepared
 	}
 	spec.PreparedDevices = outcas
+}
+
+func (s *DeviceState) getResourceModelFromAllocatableDevices() resourceapi.ResourceModel {
+	var instances []resourceapi.NamedResourcesInstance
+	for _, device := range s.allocatable {
+		instance := resourceapi.NamedResourcesInstance{
+			Name: strings.ToLower(device.uuid),
+			Attributes: []resourceapi.NamedResourcesAttribute{
+				{
+					Name: "uuid",
+					NamedResourcesAttributeValue: resourceapi.NamedResourcesAttributeValue{
+						StringValue: &device.uuid,
+					},
+				},
+				{
+					Name: "model",
+					NamedResourcesAttributeValue: resourceapi.NamedResourcesAttributeValue{
+						StringValue: &device.model,
+					},
+				},
+			},
+		}
+		instances = append(instances, instance)
+	}
+
+	return resourceapi.ResourceModel{
+		NamedResources: &resourceapi.NamedResourcesResources{Instances: instances},
+	}
 }

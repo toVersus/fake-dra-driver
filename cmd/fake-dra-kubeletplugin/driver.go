@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 
+	resourceapi "k8s.io/api/resource/v1alpha2"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	drapbv1 "k8s.io/kubelet/pkg/apis/dra/v1alpha3"
@@ -18,6 +19,7 @@ var _ drapbv1.NodeServer = &driver{}
 
 type driver struct {
 	sync.Mutex
+	doneCh chan struct{}
 
 	nascrd    *nascrd.NodeAllocationState
 	nasclient *nasclient.Client
@@ -74,6 +76,8 @@ func NewDriver(ctx context.Context, config *Config) (*driver, error) {
 func (d *driver) Shutdown(ctx context.Context) error {
 	logger := klog.FromContext(ctx)
 	logger.V(2).Info("Updating status of NodeAllocationState to NotReady before shutting down fake-dra-driver")
+	defer close(d.doneCh)
+
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		if err := d.nasclient.Get(); err != nil {
 			return err
@@ -83,7 +87,18 @@ func (d *driver) Shutdown(ctx context.Context) error {
 }
 
 func (d *driver) NodeListAndWatchResources(req *drapbv1.NodeListAndWatchResourcesRequest, stream drapbv1.Node_NodeListAndWatchResourcesServer) error {
-	// DRA Structured Parameters is not supported yet
+	resourceModel := d.state.getResourceModelFromAllocatableDevices()
+	resp := &drapbv1.NodeListAndWatchResourcesResponse{
+		Resources: []*resourceapi.ResourceModel{&resourceModel},
+	}
+
+	if err := stream.Send(resp); err != nil {
+		return err
+	}
+
+	// Keep the stream open until the driver is shutdown
+	<-d.doneCh
+
 	return nil
 }
 
