@@ -6,6 +6,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	FakeDeviceType    = "fake"
+	UnknownDeviceType = "unknown"
+)
+
 type FakeClaimParametersSpec struct {
 	Count    int           `json:"count,omitempty"`
 	Split    int           `json:"split,omitempty"`

@@ -8,8 +8,9 @@ import (
 
 	cdiapi "github.com/container-orchestrated-devices/container-device-interface/pkg/cdi"
 	cdispec "github.com/container-orchestrated-devices/container-device-interface/specs-go"
-	nascrd "github.com/toVersus/fake-dra-driver/api/3-shake.com/resource/fake/nas/v1alpha1"
 	"k8s.io/klog/v2"
+
+	fakev1alpha1 "github.com/toVersus/fake-dra-driver/api/3-shake.com/resource/fake/v1alpha1"
 )
 
 const (
@@ -99,7 +100,7 @@ func (cdi *CDIHandler) CreateClaimSpecFile(ctx context.Context, claimUID string,
 
 	fakeIndex := 0
 	switch devices.Type() {
-	case nascrd.FakeDeviceType:
+	case fakev1alpha1.FakeDeviceType:
 		for _, device := range devices.Fake.Devices {
 			cdiDevice := cdispec.Device{
 				Name: device.uuid,
@@ -142,7 +143,7 @@ func (cdi *CDIHandler) GetClaimDevices(claimUID string, devices *PreparedDevices
 	}
 
 	switch devices.Type() {
-	case nascrd.FakeDeviceType:
+	case fakev1alpha1.FakeDeviceType:
 		for _, device := range devices.Fake.Devices {
 			cdiDevice := cdiapi.QualifiedName(cdiVendor, cdiClass, device.uuid)
 			cdiDevices = append(cdiDevices, cdiDevice)

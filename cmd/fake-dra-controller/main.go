@@ -17,7 +17,6 @@ import (
 	"github.com/spf13/viper"
 
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/informers"
 	coreclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -27,7 +26,6 @@ import (
 	"k8s.io/component-base/logs"
 	logsapi "k8s.io/component-base/logs/api/v1"
 	"k8s.io/component-base/term"
-	"k8s.io/dynamic-resource-allocation/controller"
 	"k8s.io/klog/v2"
 
 	_ "k8s.io/component-base/logs/json/register" // for JSON log output support
@@ -141,11 +139,6 @@ func NewCommand() *cobra.Command {
 		err = StartClaimParametersGenerator(ctx, config)
 		if err != nil {
 			return fmt.Errorf("start claim parameters generator: %w", err)
-		}
-
-		err = StartController(ctx, config)
-		if err != nil {
-			return fmt.Errorf("start controller: %w", err)
 		}
 
 		return nil
@@ -264,14 +257,5 @@ func SetupHTTPEndpoint(ctx context.Context, config *Config) error {
 		}
 	}()
 
-	return nil
-}
-
-func StartController(ctx context.Context, config *Config) error {
-	driver := NewDriver(config)
-	informerFactory := informers.NewSharedInformerFactory(config.clientset.core, 0 /* resync period */)
-	ctrl := controller.New(config.ctx, DriverAPIGroup, driver, config.clientset.core, informerFactory)
-	informerFactory.Start(config.ctx.Done())
-	ctrl.Run(*config.flags.workers)
 	return nil
 }

@@ -80,40 +80,6 @@ fake-dra-driver-controller-7b46b9775d-g66cg   1/1     Running   0          50m
 fake-dra-driver-kubeletplugin-7hk7g           1/1     Running   0          50m
 ```
 
-And show the initial state of available GPU devices on the worker node:
-
-```console
-$ kubectl describe -n fake-system nas/fake-dra-driver-cluster-worker
-(...)
-Spec:
-  Allocatable Device:
-    Fake:
-      Name:  LATEST-FAKE-MODEL
-      Uuid:  FAKE-b944f3e9-c628-b1dc-edb1-262aaee87362
-    Fake:
-      Name:  LATEST-FAKE-MODEL
-      Uuid:  FAKE-5bb9fd80-12c1-17f8-de47-7a3e76d565dc
-    Fake:
-      Name:  LATEST-FAKE-MODEL
-      Uuid:  FAKE-4d6cc6e5-e22d-3807-f026-783d55841ea5
-    Fake:
-      Name:  LATEST-FAKE-MODEL
-      Uuid:  FAKE-0fc445e2-800c-177d-95e6-7fdad6b2427a
-    Fake:
-      Name:  LATEST-FAKE-MODEL
-      Uuid:  FAKE-a1e41d9f-5b3a-d8f8-1b08-177352484a68
-    Fake:
-      Name:  LATEST-FAKE-MODEL
-      Uuid:  FAKE-5d25fe96-37be-6082-ae92-d398d7d7038d
-    Fake:
-      Name:  LATEST-FAKE-MODEL
-      Uuid:  FAKE-9fe9fc83-a0ec-2e8a-8749-e1a9423947d4
-    Fake:
-      Name:  LATEST-FAKE-MODEL
-      Uuid:  FAKE-68cb1988-7257-2eff-4c68-f58c5ba83bd8
-(...)
-```
-
 Next, deploy four example apps that demonstrate how `ResourceClaim`s, `ResourceClaimTemplate`s, and custom `ClaimParameter` objects can be used to request access to resources in various ways:
 
 ```sh
@@ -185,135 +151,16 @@ In this example resource driver, no "actual" Fakes are made available to any con
 
 You can use the UUIDs of the Fakes set in these environment variables to verify that they were handed out in a way consistent with the semantics shown in the figure above.
 
-Likewise, looking at the `Prepared Devices` section of the `NodeAllocationState` object on the worker node will show which Fakes have been allocated to a given `ResourceClaim` by the resource driver:
-
-```console
-$ kubectl describe -n fake-system nas/fake-dra-driver-cluster-worker
-(...)
-Spec:
-  (...)
-  Prepared Devices:
-    08a6552a-e762-4a28-89da-36a9df8baeab:
-      Fake:
-        Devices:
-          Uuid:  FAKE-a1e41d9f-5b3a-d8f8-1b08-177352484a68
-          Uuid:  FAKE-4d6cc6e5-e22d-3807-f026-783d55841ea5
-          Uuid:  FAKE-5bb9fd80-12c1-17f8-de47-7a3e76d565dc
-          Uuid:  FAKE-0fc445e2-800c-177d-95e6-7fdad6b2427a
-    8fdafcb6-c9bf-4a9c-ac7f-01ce1a7417fe:
-      Fake:
-        Devices:
-          Uuid:  FAKE-5d25fe96-37be-6082-ae92-d398d7d7038d
-    a10aa390-f1f2-4ebd-aca2-afa11a9ae12f:
-      Fake:
-        Devices:
-          Uuid:  FAKE-68cb1988-7257-2eff-4c68-f58c5ba83bd8
-    a681b6e2-024a-42c2-8a0f-97346895aff3:
-      Fake:
-        Devices:
-          Uuid:  FAKE-b944f3e9-c628-b1dc-edb1-262aaee87362
-    c2f40247-5005-4004-982e-f86ebe37eb3d:
-      Fake:
-        Devices:
-          Uuid:  FAKE-9fe9fc83-a0ec-2e8a-8749-e1a9423947d4
-```
-
 Once you have verified everything is running correctly, delete all of the example apps:
 
 ```sh
 kubectl delete --wait=false --filename=fake-test{1,2,3,4}.yaml
 ```
 
-Wait for them to terminate and show that the `Prepared Devices` section of the `NodeAllocationState` object on the worker node is now back to its initial state:
-
-```console
-$ kubectl describe -n fake-system nas/fake-dra-driver-cluster-worker
-(...)
-Spec:
-  Allocatable Device:
-    Fake:
-      Name:  LATEST-FAKE-MODEL
-      Uuid:  FAKE-0fc445e2-800c-177d-95e6-7fdad6b2427a
-    Fake:
-      Name:  LATEST-FAKE-MODEL
-      Uuid:  FAKE-a1e41d9f-5b3a-d8f8-1b08-177352484a68
-    Fake:
-      Name:  LATEST-FAKE-MODEL
-      Uuid:  FAKE-5d25fe96-37be-6082-ae92-d398d7d7038d
-    Fake:
-      Name:  LATEST-FAKE-MODEL
-      Uuid:  FAKE-9fe9fc83-a0ec-2e8a-8749-e1a9423947d4
-    Fake:
-      Name:  LATEST-FAKE-MODEL
-      Uuid:  FAKE-68cb1988-7257-2eff-4c68-f58c5ba83bd8
-    Fake:
-      Name:  LATEST-FAKE-MODEL
-      Uuid:  FAKE-b944f3e9-c628-b1dc-edb1-262aaee87362
-    Fake:
-      Name:  LATEST-FAKE-MODEL
-      Uuid:  FAKE-5bb9fd80-12c1-17f8-de47-7a3e76d565dc
-    Fake:
-      Name:  LATEST-FAKE-MODEL
-      Uuid:  FAKE-4d6cc6e5-e22d-3807-f026-783d55841ea5
-(...)
-```
-
 Next, deploy another example app that demonstrate how dynamic resource allocation like MIG (Multi Instance GPU) can be made:
 
 ```sh
 kubectl apply --filename=fake-test5.yaml
-```
-
-Likewise, looking at the `Allocated Claims` section of the `NodeAllocationState` object on the worker node will show which Fakes will be allocated to a given `ResourceClaim` by the resource driver:
-
-```console
-$ kubectl describe -n fake-system nas/fake-dra-driver-cluster-worker
-(...)
-Spec:
-  (...)
-  Allocated Claims:
-    d73cf7a9-dd2a-49f0-b5d5-ef2fd60b9079:
-      Fake:
-        Devices:
-          Split:  2
-          Uuid:   FAKE-b944f3e9-c628-b1dc-edb1-262aaee87362
-          Split:  2
-          Uuid:   FAKE-5bb9fd80-12c1-17f8-de47-7a3e76d565dc
-          Split:  2
-          Uuid:   FAKE-0fc445e2-800c-177d-95e6-7fdad6b2427a
-          Split:  2
-          Uuid:   FAKE-4d6cc6e5-e22d-3807-f026-783d55841ea5
-(...)
-```
-
-Next, looking at the `Prepared Devices` section of the `NodeAllocationState` object on the worker node will show which Fakes have been allocated and associated with parent device:
-
-```console
-$ kubectl describe -n fake-system nas/fake-dra-driver-cluster-worker
-(...)
-Spec:
-  (...)
-  Prepared Devices:
-    d73cf7a9-dd2a-49f0-b5d5-ef2fd60b9079:
-      Fake:
-        Devices:
-          Parent UUID:  FAKE-b944f3e9-c628-b1dc-edb1-262aaee87362
-          Uuid:         FAKE-c3d6644d-29b2-c7b6-5393-95af636f14f8
-          Parent UUID:  FAKE-b944f3e9-c628-b1dc-edb1-262aaee87362
-          Uuid:         FAKE-b60e3cc1-54b4-1093-36b6-b8b0d59938c0
-          Parent UUID:  FAKE-5bb9fd80-12c1-17f8-de47-7a3e76d565dc
-          Uuid:         FAKE-612391cf-f75b-bd17-fb90-92b63e26f37e
-          Parent UUID:  FAKE-5bb9fd80-12c1-17f8-de47-7a3e76d565dc
-          Uuid:         FAKE-5151740b-00c1-88f9-0d1b-018f6d8b3986
-          Parent UUID:  FAKE-0fc445e2-800c-177d-95e6-7fdad6b2427a
-          Uuid:         FAKE-bcca8f6c-bacb-4aa3-dcfd-4398db24f464
-          Parent UUID:  FAKE-0fc445e2-800c-177d-95e6-7fdad6b2427a
-          Uuid:         FAKE-83fde35b-4eca-d530-17b0-390d716f4fdd
-          Parent UUID:  FAKE-4d6cc6e5-e22d-3807-f026-783d55841ea5
-          Uuid:         FAKE-d54e4b82-88d3-5d4b-a30b-b692b3805590
-          Parent UUID:  FAKE-4d6cc6e5-e22d-3807-f026-783d55841ea5
-          Uuid:         FAKE-8e0f322e-bab9-0b81-64f1-eaf4736e2b9d
-(...)
 ```
 
 Additionally, the Fake DRA driver converts FakeResourceClaims to ResourceClaimParameters, which is a core Kubernetes resource introduced in 1.30 with the [KEP-4381: DRA Structured Parameters](https://github.com/kubernetes/enhancements/issues/4381).

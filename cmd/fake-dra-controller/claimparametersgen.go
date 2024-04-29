@@ -24,6 +24,10 @@ import (
 	fakecrd "github.com/toVersus/fake-dra-driver/api/3-shake.com/resource/fake/v1alpha1"
 )
 
+const (
+	DriverName = fakecrd.GroupName
+)
+
 func StartClaimParametersGenerator(ctx context.Context, config *Config) error {
 	logger := klog.FromContext(ctx)
 
@@ -78,7 +82,7 @@ func StartClaimParametersGenerator(ctx context.Context, config *Config) error {
 	})
 
 	// Start informer
-	go fakeClaimParametersInformer.Run(ctx.Done())
+	fakeClaimParametersInformer.Run(ctx.Done())
 
 	return nil
 }

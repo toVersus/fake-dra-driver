@@ -9,7 +9,7 @@ import (
 	resourceapi "k8s.io/api/resource/v1alpha2"
 	"k8s.io/klog/v2"
 
-	nascrd "github.com/toVersus/fake-dra-driver/api/3-shake.com/resource/fake/nas/v1alpha1"
+	fakev1alpha1 "github.com/toVersus/fake-dra-driver/api/3-shake.com/resource/fake/v1alpha1"
 )
 
 type AllocatableDevices map[string]*AllocatableDeviceInfo
@@ -31,9 +31,9 @@ type PreparedDevices struct {
 
 func (d *PreparedDevices) Type() string {
 	if d.Fake != nil {
-		return nascrd.FakeDeviceType
+		return fakev1alpha1.FakeDeviceType
 	}
-	return nascrd.UnknownDeviceType
+	return fakev1alpha1.UnknownDeviceType
 }
 
 type AllocatableDeviceInfo struct {
@@ -71,19 +71,11 @@ func NewDeviceState(ctx context.Context, config *Config) (*DeviceState, error) {
 		prepared:    make(PreparedClaims),
 	}
 
-	// NodeAllocationState の CRD に記載されている PreparedDevices を読み込んで、
-	// DeviceState に反映する
-	if err := state.syncPreparedDevicesFromCRDSpec(&config.nascrd.Spec); err != nil {
-		return nil, fmt.Errorf("unable to sync prepared devices from CRD: %w", err)
-	}
-	logger.Info("Prepared all devices from CRD spec")
-
 	return state, nil
 }
 
-func (s *DeviceState) Prepare(ctx context.Context, claimUID string, allocation nascrd.AllocatedDevices) ([]string, error) {
+func (s *DeviceState) Prepare(ctx context.Context, claimUID string, devices []string, split int) ([]string, error) {
 	logger := klog.FromContext(ctx).WithValues(
-		"deviceType", allocation.Type(),
 		"resourceClaimUID", claimUID,
 	)
 	ctx = klog.NewContext(ctx, logger)
@@ -99,14 +91,12 @@ func (s *DeviceState) Prepare(ctx context.Context, claimUID string, allocation n
 
 	prepared := &PreparedDevices{}
 
-	if allocation.Type() == nascrd.FakeDeviceType {
-		logger.V(4).Info("Preparing fake devices")
-		fakes, err := s.prepareFakes(ctx, claimUID, allocation.Fake)
-		if err != nil {
-			return nil, fmt.Errorf("allocation failed: %w", err)
-		}
-		prepared.Fake = fakes
+	logger.V(4).Info("Preparing fake devices")
+	fakes, err := s.prepareFakes(ctx, claimUID, devices, split)
+	if err != nil {
+		return nil, fmt.Errorf("allocation failed: %w", err)
 	}
+	prepared.Fake = fakes
 
 	logger.V(4).Info("Creating CDI spec file for claim")
 	if err := s.cdi.CreateClaimSpecFile(ctx, claimUID, prepared); err != nil {
@@ -129,7 +119,7 @@ func (s *DeviceState) Unprepare(ctx context.Context, claimUID string) error {
 	}
 
 	switch s.prepared[claimUID].Type() {
-	case nascrd.FakeDeviceType:
+	case fakev1alpha1.FakeDeviceType:
 		klog.V(4).Info("Unpreparing fake devices")
 		if err := s.unprepareFakes(claimUID, s.prepared[claimUID]); err != nil {
 			return fmt.Errorf("unprepare failed: %w", err)
@@ -145,33 +135,23 @@ func (s *DeviceState) Unprepare(ctx context.Context, claimUID string) error {
 	return nil
 }
 
-func (s *DeviceState) GetUpdatedSpec(inspec *nascrd.NodeAllocationStateSpec) *nascrd.NodeAllocationStateSpec {
-	s.Lock()
-	defer s.Unlock()
-
-	outspec := inspec.DeepCopy()
-	s.syncAllocatableDevicesToCRDSpec(outspec)
-	s.syncPreparedDevicesToCRDSpec(outspec)
-	return outspec
-}
-
-func (s *DeviceState) prepareFakes(ctx context.Context, claimUID string, allocated *nascrd.AllocatedFakes) (*PreparedFakes, error) {
+func (s *DeviceState) prepareFakes(ctx context.Context, claimUID string, devices []string, split int) (*PreparedFakes, error) {
 	logger := klog.FromContext(ctx)
 	prepared := &PreparedFakes{}
 
-	for _, device := range allocated.Devices {
-		fakeInfo := s.allocatable[device.UUID].FakeInfo
+	for _, uuid := range devices {
+		fakeInfo := s.allocatable[uuid].FakeInfo
 
-		if _, ok := s.allocatable[device.UUID]; !ok {
-			return nil, fmt.Errorf("requested Fake does not exist: %q", device.UUID)
+		if _, ok := s.allocatable[uuid]; !ok {
+			return nil, fmt.Errorf("requested Fake does not exist: %q", uuid)
 		}
 
-		if device.Split > 0 {
-			logger.Info("Detected split device. Preparing new device", "parentUID", device.UUID, "split", device.Split)
-			splittedFakeInfo := enumerateSplittedFakeDevices(ctx, device.UUID, fakeInfo.model, device.Split)
+		if split > 0 {
+			logger.Info("Detected split device. Preparing new device", "parentUID", uuid, "split", split)
+			splittedFakeInfo := enumerateSplittedFakeDevices(ctx, uuid, fakeInfo.model, split)
 			prepared.Devices = append(prepared.Devices, splittedFakeInfo...)
 		} else {
-			logger.Info("Preparing fake device", "deviceUID", device.UUID)
+			logger.Info("Preparing fake device", "deviceUID", uuid)
 			prepared.Devices = append(prepared.Devices, fakeInfo)
 		}
 	}
@@ -180,66 +160,6 @@ func (s *DeviceState) prepareFakes(ctx context.Context, claimUID string, allocat
 
 func (s *DeviceState) unprepareFakes(claimUID string, devices *PreparedDevices) error {
 	return nil
-}
-
-func (s *DeviceState) syncAllocatableDevicesToCRDSpec(spec *nascrd.NodeAllocationStateSpec) {
-	fakes := make(map[string]nascrd.AllocatableDevice)
-	for _, device := range s.allocatable {
-		fakes[device.uuid] = nascrd.AllocatableDevice{
-			Fake: &nascrd.AllocatableFake{
-				UUID: device.uuid,
-				Name: device.model,
-			},
-		}
-	}
-
-	var allocatable []nascrd.AllocatableDevice
-	for _, device := range fakes {
-		allocatable = append(allocatable, device)
-	}
-
-	spec.AllocatableDevice = allocatable
-}
-
-func (s *DeviceState) syncPreparedDevicesFromCRDSpec(spec *nascrd.NodeAllocationStateSpec) error {
-	allocatable := s.allocatable
-
-	prepared := make(PreparedClaims)
-	for claim, devices := range spec.PreparedDevices {
-		switch devices.Type() {
-		case nascrd.FakeDeviceType:
-			fakeDevices := &PreparedFakes{}
-			prepared[claim] = &PreparedDevices{fakeDevices}
-			for _, d := range devices.Fake.Devices {
-				prepared[claim].Fake.Devices = append(prepared[claim].Fake.Devices, allocatable[d.UUID].FakeInfo)
-			}
-		}
-	}
-
-	s.prepared = prepared
-	return nil
-}
-
-func (s *DeviceState) syncPreparedDevicesToCRDSpec(spec *nascrd.NodeAllocationStateSpec) {
-	outcas := make(map[string]nascrd.PreparedDevices)
-	for claim, devices := range s.prepared {
-		var prepared nascrd.PreparedDevices
-		switch devices.Type() {
-		case nascrd.FakeDeviceType:
-			prepared.Fake = &nascrd.PreparedFakes{}
-			for _, device := range devices.Fake.Devices {
-				outdevice := nascrd.PreparedFake{
-					UUID: device.uuid,
-				}
-				if len(device.parent) != 0 {
-					outdevice.ParentUUID = device.parent
-				}
-				prepared.Fake.Devices = append(prepared.Fake.Devices, outdevice)
-			}
-		}
-		outcas[claim] = prepared
-	}
-	spec.PreparedDevices = outcas
 }
 
 func (s *DeviceState) getResourceModelFromAllocatableDevices() resourceapi.ResourceModel {

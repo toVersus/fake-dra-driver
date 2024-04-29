@@ -9,6 +9,5 @@ rules:
   - ""
   - resource.k8s.io
   - fake.resource.3-shake.com
-  - nas.fake.resource.3-shake.com
   resources: ["*"]
   verbs: ["*"]

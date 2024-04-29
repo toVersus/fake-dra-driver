@@ -12,9 +12,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	coreclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	cliflag "k8s.io/component-base/cli/flag"
@@ -27,7 +25,6 @@ import (
 
 	_ "k8s.io/component-base/logs/json/register" // for JSON log output support
 
-	nascrd "github.com/toVersus/fake-dra-driver/api/3-shake.com/resource/fake/nas/v1alpha1"
 	fakecrd "github.com/toVersus/fake-dra-driver/api/3-shake.com/resource/fake/v1alpha1"
 	shakeclientset "github.com/toVersus/fake-dra-driver/pkg/3-shake.com/resource/clientset/versioned"
 )
@@ -51,7 +48,6 @@ type Flags struct {
 
 type Config struct {
 	flags       *Flags
-	nascrd      *nascrd.NodeAllocationState
 	shakeclient shakeclientset.Interface
 }
 
@@ -102,11 +98,6 @@ func NewCommand() *cobra.Command {
 			return fmt.Errorf("error creating client configuration: %w", err)
 		}
 
-		coreclient, err := coreclientset.NewForConfig(csconfig)
-		if err != nil {
-			return fmt.Errorf("error creating core clientset: %w", err)
-		}
-
 		shakeclient, err := shakeclientset.NewForConfig(csconfig)
 		if err != nil {
 			return fmt.Errorf("error creating 3-shake.com client: %w", err)
@@ -115,25 +106,8 @@ func NewCommand() *cobra.Command {
 		nodeName := os.Getenv("NODE_NAME")
 		podNamespace := os.Getenv("POD_NAMESPACE")
 
-		node, err := coreclient.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
-		if err != nil {
-			return fmt.Errorf("error getting node object: %w", err)
-		}
-
-		crdconfig := &nascrd.NodeAllocationStateConfig{
-			Name:      nodeName,
-			Namespace: podNamespace,
-			Owner: &metav1.OwnerReference{
-				APIVersion: "v1",
-				Kind:       "Node",
-				Name:       nodeName,
-				UID:        node.UID,
-			},
-		}
-
 		config := &Config{
 			flags:       flags,
-			nascrd:      nascrd.NewNodeAllocationState(crdconfig),
 			shakeclient: shakeclient,
 		}
 

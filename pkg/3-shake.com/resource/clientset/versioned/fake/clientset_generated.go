@@ -21,8 +21,6 @@ import (
 	clientset "github.com/toVersus/fake-dra-driver/pkg/3-shake.com/resource/clientset/versioned"
 	fakev1alpha1 "github.com/toVersus/fake-dra-driver/pkg/3-shake.com/resource/clientset/versioned/typed/fake/v1alpha1"
 	fakefakev1alpha1 "github.com/toVersus/fake-dra-driver/pkg/3-shake.com/resource/clientset/versioned/typed/fake/v1alpha1/fake"
-	nasv1alpha1 "github.com/toVersus/fake-dra-driver/pkg/3-shake.com/resource/clientset/versioned/typed/nas/v1alpha1"
-	fakenasv1alpha1 "github.com/toVersus/fake-dra-driver/pkg/3-shake.com/resource/clientset/versioned/typed/nas/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -83,9 +81,4 @@ var (
 // FakeV1alpha1 retrieves the FakeV1alpha1Client
 func (c *Clientset) FakeV1alpha1() fakev1alpha1.FakeV1alpha1Interface {
 	return &fakefakev1alpha1.FakeFakeV1alpha1{Fake: &c.Fake}
-}
-
-// NasV1alpha1 retrieves the NasV1alpha1Client
-func (c *Clientset) NasV1alpha1() nasv1alpha1.NasV1alpha1Interface {
-	return &fakenasv1alpha1.FakeNasV1alpha1{Fake: &c.Fake}
 }

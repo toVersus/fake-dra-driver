@@ -13,7 +13,7 @@
 # limitations under the License.
 
 VENDOR := 3-shake.com
-APIS := fake/nas/v1alpha1 fake/v1alpha1
+APIS := fake/v1alpha1
 
 PLURAL_EXCEPTIONS  = DeviceClassParameters:DeviceClassParameters
 PLURAL_EXCEPTIONS += FakeClaimParameters:FakeClaimParameters

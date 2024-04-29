@@ -36,4 +36,3 @@ LABEL description="See summary"
 
 COPY --from=build /artifacts/fake-dra-controller    /usr/bin/fake-dra-controller
 COPY --from=build /artifacts/fake-dra-kubeletplugin /usr/bin/fake-dra-kubeletplugin
-COPY --from=build /artifacts/set-nas-status         /usr/bin/set-nas-status
