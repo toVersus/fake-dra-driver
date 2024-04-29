@@ -1,7 +1,7 @@
 DRIVER_NAME := fake-dra-driver
 MODULE := github.com/toVersus/$(DRIVER_NAME)
 
-VERSION  ?= v0.1.3
+VERSION  ?= v0.1.4
 # vVERSION represents the version with a guaranteed v-prefix
 vVERSION := v$(VERSION:v%=%)
 
